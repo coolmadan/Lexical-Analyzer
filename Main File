@@ -1,1 +1,165 @@
+import tkinter as tk
+from tkinter import filedialog
+from collections import OrderedDict
+import re
+import customtkinter
+import psycopg2
+customtkinter.set_appearance_mode("Dark")  # Modes: system (default), light, dark
+customtkinter.set_default_color_theme("blue")
 
+def query():    
+#configure and connect to postgres
+	conn =psycopg2.connect(
+        host="localhost",
+        database="myDB",
+        user="******",
+        password="*********",
+        port="5432",
+    )
+	c =conn.cursor()
+	#create a table
+	c.execute('''CREATE TABLE IF NOT EXISTS table3
+    (first_name TEXT,
+    last_name TEXT);''') 
+	conn.commit()
+	conn.close()
+def submit():
+	conn =psycopg2.connect(
+        host="localhost",
+        database="myDB",
+        user="******",
+        password="********",
+        port="5432",
+    )
+	c =conn.cursor()
+	c.execute('''INSERT INTO table3(first_name,last_name)VALUES(%s,%s)''',(f_name.get(),l_name.get()))
+	conn.commit()
+	conn.close()
+	x_label=customtkinter.CTkLabel(root,text="Last Users : ",text_color="silver")
+	x_label.place(x=1200,y=235)
+	update()
+# Token types
+def update():
+	conn =psycopg2.connect(
+        host="localhost",
+        database="myDB",
+        user="*******",
+        password="*********",
+        port="5432",
+    )
+	c =conn.cursor()
+    #grab stuff
+	c.execute("SELECT * FROM table3")
+	records=c.fetchall()
+	output=''
+	for record in records:
+		output_label.configure(text=f'{output}\n{record[0]} {record[1]}')
+		output=output_label.cget('text')
+	conn.close()      
+TOKEN_TYPES = OrderedDict([
+    ('KEYWORD', r'(auto|break|case|char|const|continue|default|do|double|else|enum|extern|float|for|goto|if|int|long|register|return|short|signed|sizeof|static|struct|switch|typedef|union|unsigned|void|volatile|while)'),
+    ('IDENTIFIER', r'[a-zA-Z_][a-zA-Z0-9_]*'),
+    ('CONSTANT', r'(0x[0-9A-Fa-f]+|\d+\.\d*|\.\d+|\d+)'),
+    ('STRING_LITERAL', r'\".*?\"'),
+    ('OPERATOR', r'(\+\+|--|->|==|!=|<=|>=|\+=|-=|\*=|/=|%=|<<|>>|<<=|>>=|&=|\^=|\|=)'),
+    ('PUNCTUATOR', r'([(){}\[\];,])'),
+    ('COMMENT', r'(/\*.*?\*/|//.*)'),
+])
+
+# Function to tokenize C code
+
+
+def tokenize_c_code(code):
+    tokens = []
+    for token_type, pattern in TOKEN_TYPES.items():
+        for match in re.findall(pattern, code):
+            tokens.append((token_type, match))
+    return tokens
+
+# Function to open file dialog and get file path
+
+
+def open_file_dialog():
+    file_path = filedialog.askopenfilename()
+    if file_path:
+        txt_file.delete('1.0', tk.END)
+        txt_file.insert(tk.END, file_path)
+
+# Function to analyze C code and generate symbol tree
+
+
+def analyze_c_code():
+    file_path = txt_file.get('1.0', tk.END).strip()
+    if not file_path:
+        result_text.delete('1.0', tk.END)
+        result_text.insert(tk.END, 'Please select a file.')
+        return
+
+    try:
+        with open(file_path, 'r') as file:
+            code = file.read()
+            tokens = tokenize_c_code(code)
+
+            # Generate symbol tree in tabular format
+            symbol_tree = []
+            for token in tokens:
+                symbol_tree.append([token[0], token[1]])
+
+            result_text.delete('1.0', tk.END)
+            result_text.insert(tk.END, '{:<15}{}\n'.format('Token', 'Lexeme'))
+            result_text.insert(tk.END, '-'*30 + '\n')
+            for symbol in symbol_tree:
+                result_text.insert(
+                    tk.END, '{:<15}{}\n'.format(symbol[0], symbol[1]))
+    except Exception as e:
+        result_text.delete('1.0', tk.END)
+        result_text.insert(tk.END, 'Error: {}'.format(str(e)))
+    submit()
+
+# Create main window
+root = customtkinter.CTk()
+root.title('Lexical Analyzer')
+root.geometry("620x500")
+# Create text box for file path
+label= customtkinter.CTkLabel(root,text="Lexical Analyzer for C programming Language",height=40,width=50,font=("Robolo",20),text_color="silver")
+label.pack(pady=10)
+label2= customtkinter.CTkLabel(root,text="What is Lexical Analyzer ? ",height=15,width=100,font=("Robolo",15),text_color="silver")
+label2.place(x=33,y=50)
+label3= customtkinter.CTkLabel(root,text="Lexical Analysis is the very first phase in the compiler designing.  A Lexer takes  the modified source code which is written in the form of sentences . In other words , it helps you to convert a sequence of characters into a ",height=15,width=100,font=("Robolo",15),justify="left",text_color="silver")
+label3.pack(pady=10)
+label4= customtkinter.CTkLabel(root,text="sequence of tokens.The lexical analyzer breaks this syntax into a series of tokens.It removes any extra space,comment written in the source code.Programs that perform Lexical Analysis are called lexical analyzers/lexers.",height=15,width=100,font=("Robolo",15),justify="left",text_color="silver")
+label4.pack(pady=0)
+label5= customtkinter.CTkLabel(root,text="WORKING DEMO  : ",height=15,width=50,font=("Robolo",15),text_color="silver",justify="left")
+label5.place(x=383,y=145)
+text_frame= customtkinter.CTkFrame(root,corner_radius=10)
+text_frame.place(x=383,y=225)
+txt_file = tk.Text(text_frame, height=1, width=72,bd=0,bg="#292929",fg="silver")
+txt_file.pack(pady=10,padx=10)
+ 
+# Create buttons for file dialog and analysis
+
+btn_browse = customtkinter.CTkButton(root, text='Lookup', command=open_file_dialog)
+btn_browse.place(x=633,y=265)
+
+btn_analyze = customtkinter.CTkButton(root, text='Run', command=analyze_c_code)
+
+btn_analyze.place(x=633,y=300)
+label1= customtkinter.CTkLabel(root,text="OUTPUT  : ",height=15,width=50,font=("Robolo",15),text_color="silver",justify="left")
+label1.place(x=383,y=335)
+txt_frame= customtkinter.CTkFrame(root,corner_radius=10)
+txt_frame.place(x=383,y=365)
+result_text = tk.Text(txt_frame, height=25, width=75,bd=0,bg="#292929",fg="silver")
+result_text.pack(pady=10)
+f_label=customtkinter.CTkLabel(root,text="First Name :",text_color="silver",height=0.5,font=("Robolo",15))
+f_label.place(x=383,y=168)
+f_name=customtkinter.CTkEntry(root,text_color="silver",height=0.75,width=200)
+f_name.place(x=655,y=168)
+l_label=customtkinter.CTkLabel(root,text="Last Name :",text_color="silver",height=0.5,font=("Robolo",15))
+l_label.place(x=383,y=194)
+l_name=customtkinter.CTkEntry(root,text_color="silver",height=0.75,width=200,bg_color="#292929")
+l_name.place(x=655,y=194)
+output_label=customtkinter.CTkLabel(root,text="",text_color="silver")
+output_label.place(x=1200,y=260)
+
+query()
+root.mainloop()
